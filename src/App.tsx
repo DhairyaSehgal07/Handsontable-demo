@@ -16,13 +16,15 @@ const App = () => {
     ["2021", 30, 15, 12, 13],
   ]);
 
-  const [cellMeta, setCellMeta] = useState<
+  // Replace useState with Map
+  const cellMeta: Map<
+    string,
     {
       row: number;
       col: number;
       [key: string]: any;
-    }[]
-  >([]);
+    }
+  > = new Map();
 
   const afterSetCellMeta = (
     row: number,
@@ -30,37 +32,15 @@ const App = () => {
     key: string,
     value: any
   ) => {
-    console.log("afterSetCellMeta", row, col, key, value);
-    const index = cellMeta.findIndex(
-      (meta) => meta.row === row && meta.col === col
-    );
-
-    if (index === -1) {
-      // Cell metadata doesn't exist yet
-      setCellMeta([
-        ...cellMeta,
-        {
-          row,
-          col,
-          [key]: value,
-        },
-      ]);
+    const mapKey = `${row},${col}`;
+    const metaRow = cellMeta.get(mapKey);
+    if (metaRow) {
+      cellMeta.set(mapKey, { [key]: value, ...metaRow });
     } else {
-      // Update existing cell metadata
-      const updatedCellMeta = cellMeta.map((meta) => {
-        if (meta.row === row && meta.col === col) {
-          return {
-            ...meta,
-            [key]: value,
-          };
-        }
-        return meta;
-      });
-      setCellMeta(updatedCellMeta);
+      cellMeta.set(mapKey, { row, col, [key]: value });
     }
 
     // Update privateData as before
-    const mapKey = `${row},${col}`;
     const currentPrivateData = privateData || {};
     const updatedPrivateData = {
       ...currentPrivateData,
@@ -74,42 +54,21 @@ const App = () => {
     setPrivateData(updatedPrivateData);
   };
 
-  // Log whenever privateData changes
+  // Initialize cell metadata if needed
   useEffect(() => {
-    console.log("Private data updated:", privateData);
-  }, [privateData]);
+    const handsontable = hotRef.current?.hotInstance;
+    if (handsontable) {
+      // Example: Set initial metadata
+      // Replace this with your actual metadata initialization
+      const initialMetadata = [
+        { row: 0, col: 0, className: "custom-cell" },
+        { row: 1, col: 1, className: "highlight-cell" },
+      ];
 
-  // Add function to handle setting cell metadata
-  const handleSetCellMeta = (row: number, col: number, className: string) => {
-    const hot = hotRef.current?.hotInstance;
-    if (hot) {
-      hot.setCellMeta(row, col, "className", className);
-
-      // Update our state to reflect the change
-      const newMeta = {
-        row,
-        col,
-        className,
-      };
-
-      setCellMeta((prev) => {
-        const index = prev.findIndex(
-          (meta) => meta.row === row && meta.col === col
-        );
-        if (index === -1) {
-          return [...prev, newMeta];
-        }
-        const updated = [...prev];
-        updated[index] = { ...updated[index], ...newMeta };
-        return updated;
+      initialMetadata.forEach((item) => {
+        handsontable.setCellMetaObject(item.row, item.col, item);
       });
     }
-  };
-
-  // Example usage - you can call this from a button or other event
-  useEffect(() => {
-    // Example: Set custom class for cell at row 0, col 0
-    handleSetCellMeta(0, 0, "custom-cell");
   }, []);
 
   return (
@@ -142,11 +101,6 @@ const App = () => {
         afterSetCellMeta={afterSetCellMeta}
         licenseKey="non-commercial-and-evaluation"
       />
-
-      {/* Example button to set cell metadata */}
-      <button onClick={() => handleSetCellMeta(1, 1, "highlight-cell")}>
-        Highlight Cell (1,1)
-      </button>
 
       {/* Debug display */}
       <div style={{ marginTop: "20px" }}>
